@@ -1,24 +1,38 @@
 import fastify from 'fastify'
-import { createGoal } from '../functions/create-goal'
+import {
+  serializerCompiler,
+  validatorCompiler,
+  type ZodTypeProvider,
+} from 'fastify-type-provider-zod'
 import z from 'zod'
-
-const app = fastify()
+import { createGoal } from '../functions/create-goal'
 
 const PORT = 3333
 
-app.post('/goals', async request => {
-  const createGoalSchema = z.object({
-    title: z.string(),
-    desiredWeeklyFrequency: z.number().int().min(1).max(7),
-  })
+const app = fastify().withTypeProvider<ZodTypeProvider>()
 
-  const body = createGoalSchema.parse(request.body)
+app.setValidatorCompiler(validatorCompiler)
+app.setSerializerCompiler(serializerCompiler)
 
-  await createGoal({
-    title: body.title,
-    desiredWeeklyFrequency: body.desiredWeeklyFrequency,
-  })
-})
+app.post(
+  '/goals',
+  {
+    schema: {
+      body: z.object({
+        title: z.string(),
+        desiredWeeklyFrequency: z.number().int().min(1).max(7),
+      }),
+    },
+  },
+  async request => {
+    const { title, desiredWeeklyFrequency } = request.body
+
+    await createGoal({
+      title,
+      desiredWeeklyFrequency,
+    })
+  }
+)
 
 app.listen({ port: PORT }).then(() => {
   console.log(`HTTP server running on http://localhost:${PORT}`)
